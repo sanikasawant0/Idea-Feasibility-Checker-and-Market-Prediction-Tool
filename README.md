@@ -1,2 +1,5 @@
-# Idea-Feasibility-Checker-and-Market-Prediction-Tool
-user can predict market before actually commiting to his business idea and check feasibility of his idea
+# Firebase Studio
+
+This is a NextJS starter in Firebase Studio.
+
+To get started, take a look at src/app/page.tsx.

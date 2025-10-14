@@ -1,0 +1,146 @@
+/**
+ * @fileoverview Firestore Security Rules for VentureVision AI.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model.  All data is nested under
+ * /users/{userId}, ensuring that only the authenticated user can access their
+ * own data.
+ *
+ * Data Structure:
+ * The Firestore database is structured hierarchically:
+ * /users/{userId} - Stores user profiles.
+ * /users/{userId}/idea_analyses/{ideaAnalysisId} - Stores idea analyses for each user.
+ * /users/{userId}/idea_analyses/{ideaAnalysisId}/competitors/{competitorId} - Stores competitor data for each idea analysis.
+ * /users/{userId}/idea_analyses/{ideaAnalysisId}/market_trends/{marketTrendId} - Stores market trend data for each idea analysis.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own data.
+ * - Data is nested to avoid complex queries and ensure clear ownership.
+ * - Listing other users is disallowed.
+ * - Flexible data schemas are permitted for rapid prototyping.
+ *
+ * Denormalization for Authorization:
+ * The `userId` is present in both the path and the `IdeaAnalysis` documents, allowing for efficient ownership checks without additional `get()` calls.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Controls access to user profile documents.
+     * @path /users/{userId}
+     * @allow (create) - If the user is creating their own profile (auth.uid == userId).
+     * @allow (get, update, delete) - If the user is the owner of the profile.
+     * @allow (list) - Listing all users is disallowed for privacy reasons.
+     * @deny (create) - If the user is attempting to create a profile for another user.
+     * @deny (update, delete) - If the user is not the owner of the profile.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data.
+     */
+    match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource.data != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to idea analysis documents for a specific user.
+     * @path /users/{userId}/idea_analyses/{ideaAnalysisId}
+     * @allow (create) - If the user is creating an idea analysis under their own user ID.
+     * @allow (get, list, update, delete) - If the user is the owner of the idea analysis (userId in path matches auth.uid).
+     * @deny (create) - If the userId in the path does not match the authenticated user's ID.
+     * @deny (update, delete) - If the user is not the owner of the idea analysis.
+     * @principle Enforces document ownership for writes within a user-specific subcollection.
+     */
+    match /users/{userId}/idea_analyses/{ideaAnalysisId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource.data != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to competitor documents nested under idea analyses.
+     * @path /users/{userId}/idea_analyses/{ideaAnalysisId}/competitors/{competitorId}
+     * @allow (create) - If the user is creating a competitor document under their own user ID and idea analysis.
+     * @allow (get, list, update, delete) - If the user is the owner of the parent idea analysis (userId in path matches auth.uid).
+     * @deny (create) - If the userId in the path does not match the authenticated user's ID.
+     * @deny (update, delete) - If the user is not the owner of the parent idea analysis.
+     * @principle Extends document ownership to nested subcollections.
+     */
+    match /users/{userId}/idea_analyses/{ideaAnalysisId}/competitors/{competitorId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource.data != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to market trend documents nested under idea analyses.
+     * @path /users/{userId}/idea_analyses/{ideaAnalysisId}/market_trends/{marketTrendId}
+     * @allow (create) - If the user is creating a market trend document under their own user ID and idea analysis.
+     * @allow (get, list, update, delete) - If the user is the owner of the parent idea analysis (userId in path matches auth.uid).
+     * @deny (create) - If the userId in the path does not match the authenticated user's ID.
+     * @deny (update, delete) - If the user is not the owner of the parent idea analysis.
+     * @principle Extends document ownership to deeply nested subcollections.
+     */
+    match /users/{userId}/idea_analyses/{ideaAnalysisId}/market_trends/{marketTrendId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource.data != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+}
